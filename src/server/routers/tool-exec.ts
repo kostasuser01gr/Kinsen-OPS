@@ -5,6 +5,21 @@ import { getTool, listTools, parseSlashCommand } from "@/lib/tools/registry";
 import { hasPermission } from "@/lib/permissions";
 import type { Role } from "@prisma/client";
 
+// Structured error codes for frontend consumption
+type ToolErrorCode =
+  | "TOOL_NOT_FOUND"
+  | "PERMISSION_DENIED"
+  | "INVALID_INPUT"
+  | "EXECUTION_ERROR"
+  | "TOOL_UNAVAILABLE";
+
+interface StructuredToolError {
+  code: ToolErrorCode;
+  message: string;
+  toolName: string;
+  requiredPermission?: string;
+}
+
 export const toolExecRouter = router({
   listTools: protectedProcedure.query(({ ctx }) => {
     return listTools(ctx.user.role).map((t) => ({
@@ -13,6 +28,7 @@ export const toolExecRouter = router({
       description: t.description,
       category: t.category,
       isWriteAction: t.isWriteAction,
+      requiredPermission: t.requiredPermission,
     }));
   }),
 
@@ -20,6 +36,25 @@ export const toolExecRouter = router({
     const { listSlashCommands } = require("@/lib/tools/registry");
     return listSlashCommands(ctx.user.role);
   }),
+
+  // Precheck endpoint — validates tool executability without running it
+  precheck: protectedProcedure
+    .input(z.object({ toolName: z.string() }))
+    .query(({ ctx, input }) => {
+      const tool = getTool(input.toolName);
+      if (!tool) {
+        return { executable: false, code: "TOOL_NOT_FOUND" as ToolErrorCode, reason: `Tool "${input.toolName}" not found` };
+      }
+      if (!hasPermission(ctx.user.role as Role, tool.requiredPermission as never)) {
+        return {
+          executable: false,
+          code: "PERMISSION_DENIED" as ToolErrorCode,
+          reason: `Requires permission: ${tool.requiredPermission}`,
+          requiredPermission: tool.requiredPermission,
+        };
+      }
+      return { executable: true, code: null, reason: null };
+    }),
 
   execute: protectedProcedure
     .input(
@@ -32,26 +67,67 @@ export const toolExecRouter = router({
     .mutation(async ({ ctx, input }) => {
       const tool = getTool(input.toolName);
       if (!tool) {
-        // Store error as system message
+        const error: StructuredToolError = {
+          code: "TOOL_NOT_FOUND",
+          message: `Unknown tool: ${input.toolName}`,
+          toolName: input.toolName,
+        };
         const msg = await ctx.db.message.create({
           data: {
             conversationId: input.conversationId,
             role: "system",
-            content: `Unknown tool: ${input.toolName}`,
+            content: error.message,
+            toolName: input.toolName,
+            toolOutput: JSON.parse(JSON.stringify({ error })),
           },
         });
+
+        // Audit failed execution attempt
+        await ctx.db.auditLog.create({
+          data: {
+            actorId: ctx.user.id,
+            action: "tool.execute_failed",
+            entityType: "Tool",
+            entityId: input.toolName,
+            newState: JSON.parse(JSON.stringify({ error: error.code, toolName: input.toolName })),
+          },
+        });
+
         return msg;
       }
 
       // Permission check
       if (!hasPermission(ctx.user.role as Role, tool.requiredPermission as never)) {
+        const error: StructuredToolError = {
+          code: "PERMISSION_DENIED",
+          message: `Permission denied: requires ${tool.requiredPermission}`,
+          toolName: input.toolName,
+          requiredPermission: tool.requiredPermission,
+        };
         const msg = await ctx.db.message.create({
           data: {
             conversationId: input.conversationId,
             role: "system",
-            content: `Permission denied: requires ${tool.requiredPermission}`,
+            content: error.message,
+            toolName: input.toolName,
+            toolOutput: JSON.parse(JSON.stringify({ error })),
           },
         });
+
+        await ctx.db.auditLog.create({
+          data: {
+            actorId: ctx.user.id,
+            action: "tool.permission_denied",
+            entityType: "Tool",
+            entityId: input.toolName,
+            newState: JSON.parse(JSON.stringify({
+              error: error.code,
+              requiredPermission: tool.requiredPermission,
+              userRole: ctx.user.role,
+            })),
+          },
+        });
+
         return msg;
       }
 
@@ -96,14 +172,37 @@ export const toolExecRouter = router({
         });
 
         return msg;
-      } catch (error) {
+      } catch (err) {
+        const error: StructuredToolError = {
+          code: "EXECUTION_ERROR",
+          message: err instanceof Error ? err.message : "Unknown execution error",
+          toolName: input.toolName,
+        };
+
         const msg = await ctx.db.message.create({
           data: {
             conversationId: input.conversationId,
             role: "system",
-            content: `Tool error: ${error instanceof Error ? error.message : "Unknown error"}`,
+            content: `Tool error: ${error.message}`,
+            toolName: input.toolName,
+            toolOutput: JSON.parse(JSON.stringify({ error })),
           },
         });
+
+        await ctx.db.auditLog.create({
+          data: {
+            actorId: ctx.user.id,
+            action: "tool.execute_error",
+            entityType: "Tool",
+            entityId: input.toolName,
+            newState: JSON.parse(JSON.stringify({
+              error: error.code,
+              message: error.message,
+              toolInput: input.input,
+            })),
+          },
+        });
+
         return msg;
       }
     }),

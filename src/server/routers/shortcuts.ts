@@ -7,7 +7,6 @@ export const shortcutRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.shortcut.findMany({
       where: {
-        isActive: true,
         OR: [
           { createdById: ctx.user.id },
           { visibilityScope: "org" },
