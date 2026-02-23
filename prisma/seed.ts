@@ -200,6 +200,29 @@ async function main() {
     }),
   ]);
 
+  // ─── Shortcuts ───
+  await prisma.shortcut.deleteMany();
+  await Promise.all([
+    prisma.shortcut.create({
+      data: { name: "Fleet Status", description: "Show all vehicles", icon: "Car", actionType: "tool_action", toolName: "fleet.list", outputMode: "table", visibilityScope: "org", createdById: admin.id },
+    }),
+    prisma.shortcut.create({
+      data: { name: "Fleet Summary", description: "Vehicle stats breakdown", icon: "BarChart3", actionType: "tool_action", toolName: "fleet.stats", outputMode: "widget", visibilityScope: "org", createdById: admin.id },
+    }),
+    prisma.shortcut.create({
+      data: { name: "Urgent Tasks", description: "Show urgent/high priority tasks", icon: "AlertTriangle", actionType: "tool_action", toolName: "task.list", defaultInputs: { priority: "URGENT" }, outputMode: "table", visibilityScope: "org", createdById: admin.id },
+    }),
+    prisma.shortcut.create({
+      data: { name: "Active Rentals", description: "Currently active rental contracts", icon: "FileText", actionType: "tool_action", toolName: "rentals.active", outputMode: "table", visibilityScope: "org", createdById: admin.id },
+    }),
+    prisma.shortcut.create({
+      data: { name: "Open Incidents", description: "Unresolved incidents", icon: "AlertTriangle", actionType: "tool_action", toolName: "incident.list", outputMode: "table", visibilityScope: "org", createdById: admin.id },
+    }),
+    prisma.shortcut.create({
+      data: { name: "Finance Overview", description: "Revenue and payment summary", icon: "DollarSign", actionType: "tool_action", toolName: "finance.summary", outputMode: "widget", visibilityScope: "org", createdById: admin.id },
+    }),
+  ]);
+
   console.log("✅ Seed completed successfully!");
   console.log("");
   console.log("Demo accounts (all use PIN: 1234):");

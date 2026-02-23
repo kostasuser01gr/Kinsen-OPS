@@ -229,6 +229,8 @@ model User {
   supervisedShifts  Shift[]             @relation("ShiftSupervisor")
   auditLogs         AuditLog[]
   statusChanges     VehicleStatusHistory[]
+  conversations     Conversation[]
+  shortcuts         Shortcut[]
 
   @@map("users")
 }
@@ -506,4 +508,64 @@ model AuditLog {
   @@index([actorId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ─── WORKSPACE MODELS ───────────────────────────────────
+
+model Conversation {
+  id        String    @id @default(cuid())
+  title     String?
+  userId    String
+  isPinned  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id])
+  messages  Message[]
+
+  @@index([userId, updatedAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  role           String       // user | system | tool_result
+  content        String
+  toolName       String?
+  toolInput      Json?
+  toolOutput     Json?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+model Shortcut {
+  id                      String   @id @default(cuid())
+  name                    String
+  description             String?
+  icon                    String?
+  actionType              String   // prompt_template | tool_action | tool_sequence | saved_view
+  promptTemplate          String?
+  toolName                String?
+  toolSequence            Json?
+  inputSchema             Json?
+  defaultInputs           Json?
+  outputMode              String   @default("chat")
+  permissionScopeRequired String?
+  visibilityScope         String   @default("private")
+  createdById             String
+  isActive                Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  createdBy               User     @relation(fields: [createdById], references: [id])
+
+  @@index([createdById])
+  @@index([visibilityScope, isActive])
+  @@map("shortcuts")
 }

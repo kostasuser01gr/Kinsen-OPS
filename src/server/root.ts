@@ -8,6 +8,9 @@ import { chatRouter } from "@/server/routers/chat";
 import { analyticsRouter } from "@/server/routers/analytics";
 import { auditRouter } from "@/server/routers/audit";
 import { branchRouter } from "@/server/routers/branch";
+import { workspaceRouter } from "@/server/routers/workspace";
+import { toolExecRouter } from "@/server/routers/tool-exec";
+import { shortcutRouter } from "@/server/routers/shortcuts";
 
 export const appRouter = router({
   fleet: fleetRouter,
@@ -19,6 +22,9 @@ export const appRouter = router({
   analytics: analyticsRouter,
   audit: auditRouter,
   branch: branchRouter,
+  workspace: workspaceRouter,
+  toolExec: toolExecRouter,
+  shortcut: shortcutRouter,
 });
 
 export type AppRouter = typeof appRouter;
