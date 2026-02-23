@@ -25,6 +25,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Send, Slash, Zap, AlertTriangle, Lock } from "lucide-react";
+import { toast } from "sonner";
 import {
   validateShortcutExecution,
   type ShortcutDef,
@@ -59,9 +60,15 @@ export function Composer({ conversationId, onMessageSent, shortcuts }: ComposerP
 
   const sendMessage = trpc.workspace.sendMessage.useMutation({
     onSuccess: () => onMessageSent(),
+    onError: (err) => {
+      toast.error("Failed to send message", { description: err.message });
+    },
   });
   const executeTool = trpc.toolExec.execute.useMutation({
     onSuccess: () => onMessageSent(),
+    onError: (err) => {
+      toast.error("Tool execution failed", { description: err.message });
+    },
   });
 
   const slashCommands = [

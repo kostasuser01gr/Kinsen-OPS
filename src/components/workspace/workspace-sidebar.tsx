@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -49,9 +50,15 @@ export function WorkspaceSidebar({
       refetch();
       router.push(`/workspace/c/${conv.id}`);
     },
+    onError: (err) => {
+      toast.error("Failed to create conversation", { description: err.message });
+    },
   });
   const deleteConv = trpc.workspace.deleteConversation.useMutation({
     onSuccess: () => refetch(),
+    onError: (err) => {
+      toast.error("Failed to delete", { description: err.message });
+    },
   });
   const togglePin = trpc.workspace.togglePin.useMutation({
     onSuccess: () => refetch(),
