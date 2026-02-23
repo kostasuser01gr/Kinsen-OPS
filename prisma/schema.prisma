@@ -159,6 +159,143 @@ enum ChannelType {
   CONTEXTUAL
 }
 
+// ─── PHASE 2A ENUMS ──────────────────────────────────────
+
+enum ReadinessState {
+  READY
+  NEEDS_CLEANING
+  NEEDS_FUEL
+  NEEDS_INSPECTION
+  BLOCKED
+}
+
+enum ComplianceStatus {
+  COMPLIANT
+  EXPIRING_SOON
+  NON_COMPLIANT
+}
+
+enum InspectionType {
+  PICKUP
+  RETURN
+  PERIODIC
+  POST_MAINTENANCE
+}
+
+enum InspectionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DISPUTED
+}
+
+enum CheckpointCondition {
+  OK
+  MINOR_DAMAGE
+  MAJOR_DAMAGE
+  MISSING
+}
+
+enum CheckpointCategory {
+  EXTERIOR
+  INTERIOR
+  MECHANICAL
+  DOCUMENTS
+}
+
+enum MaintenanceType {
+  SCHEDULED
+  UNSCHEDULED
+  EMERGENCY
+  RECALL
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum MaintenanceStatus {
+  REQUESTED
+  APPROVED
+  SCHEDULED
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  NEEDS_RECHECK
+  CANCELLED
+  DENIED
+}
+
+enum FleetImpact {
+  AVAILABLE_AFTER
+  NEEDS_INSPECTION
+  OUT_OF_SERVICE
+}
+
+enum ClaimStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  NEEDS_INFO
+  APPROVED
+  DENIED
+  APPEAL
+  SETTLED
+  CLOSED
+}
+
+enum ClaimType {
+  INSURANCE
+  CUSTOMER_LIABILITY
+  INTERNAL
+}
+
+enum ResponsibleParty {
+  CUSTOMER
+  THIRD_PARTY
+  COMPANY
+  UNKNOWN
+}
+
+enum ApprovalType {
+  REFUND
+  OVERRIDE
+  TRANSFER
+  WAIVER
+  MAINTENANCE
+  CLAIM_SETTLEMENT
+  STATUS_OVERRIDE
+  BACKDATED_EDIT
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  DENIED
+  EXPIRED
+  ESCALATED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_OVERDUE
+  APPROVAL_REQUESTED
+  APPROVAL_DECIDED
+  INCIDENT_CREATED
+  MAINTENANCE_UPDATE
+  SHIFT_HANDOVER
+  SYSTEM_ALERT
+}
+
+enum CustomerEligibility {
+  ELIGIBLE
+  REVIEW_REQUIRED
+  BLOCKED
+}
+
 enum ShiftStatus {
   SCHEDULED
   ACTIVE
@@ -231,33 +368,47 @@ model User {
   statusChanges     VehicleStatusHistory[]
   conversations     Conversation[]
   shortcuts         Shortcut[]
+  inspections       Inspection[]
+  approvalRequests  ApprovalRequest[]   @relation("ApprovalRequester")
+  approvalDecisions ApprovalRequest[]   @relation("ApprovalDecider")
+  notifications     Notification[]
 
   @@map("users")
 }
 
 model Vehicle {
-  id             String        @id @default(cuid())
-  plate          String        @unique
-  vin            String?       @unique
-  internalCode   String?       @unique
-  branchId       String
-  class          VehicleClass
-  make           String
-  model          String
-  year           Int
-  color          String?
-  status         VehicleStatus @default(AVAILABLE)
-  mileage        Int           @default(0)
-  fuelLevel      Int?          // percentage 0-100
-  isActive       Boolean       @default(true)
-  notes          String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id               String           @id @default(cuid())
+  plate            String           @unique
+  vin              String?          @unique
+  internalCode     String?          @unique
+  branchId         String
+  class            VehicleClass
+  make             String
+  model            String
+  year             Int
+  color            String?
+  status           VehicleStatus    @default(AVAILABLE)
+  readinessState   ReadinessState   @default(READY)
+  complianceStatus ComplianceStatus @default(COMPLIANT)
+  mileage          Int              @default(0)
+  fuelLevel        Int?             // percentage 0-100
+  nextServiceDue   DateTime?
+  nextInsuranceDue DateTime?
+  nextRegistrationDue DateTime?
+  downtimeStart    DateTime?
+  downtimeReason   String?
+  currentRentalId  String?
+  isActive         Boolean          @default(true)
+  notes            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  branch         Branch        @relation(fields: [branchId], references: [id])
-  rentals        Rental[]
-  incidents      Incident[]
-  statusHistory  VehicleStatusHistory[]
+  branch              Branch                @relation(fields: [branchId], references: [id])
+  rentals             Rental[]
+  incidents           Incident[]
+  statusHistory       VehicleStatusHistory[]
+  inspections         Inspection[]
+  maintenanceRequests MaintenanceRequest[]
 
   @@index([branchId, status])
   @@map("vehicles")
@@ -280,49 +431,57 @@ model VehicleStatusHistory {
 }
 
 model Customer {
-  id            String   @id @default(cuid())
-  firstName     String
-  lastName      String
-  email         String?
-  phone         String
-  licenseNumber String
-  idDocument    String?
-  address       String?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String              @id @default(cuid())
+  firstName          String
+  lastName           String
+  email              String?
+  phone              String
+  licenseNumber      String
+  idDocument         String?
+  address            String?
+  eligibilityStatus  CustomerEligibility @default(ELIGIBLE)
+  flags              String[]            @default([])
+  notes              String?
+  restrictedNotes    String?             // visible only to Branch Manager+
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
-  rentals       Rental[]
+  rentals            Rental[]
+  claims             Claim[]
 
   @@index([lastName, firstName])
   @@map("customers")
 }
 
 model Rental {
-  id              String        @id @default(cuid())
-  contractNumber  String        @unique @default(cuid())
-  customerId      String
-  vehicleId       String
-  branchOutId     String
-  branchInId      String?
-  pickupTime      DateTime
-  returnTime      DateTime?
-  actualReturnTime DateTime?
-  status          RentalStatus  @default(DRAFT)
-  paymentStatus   PaymentStatus @default(PENDING)
-  depositStatus   DepositStatus?
-  depositAmount   Decimal?      @db.Decimal(10, 2)
-  totalAmount     Decimal?      @db.Decimal(10, 2)
-  dailyRate       Decimal       @db.Decimal(10, 2)
-  notes           String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                 String        @id @default(cuid())
+  contractNumber     String        @unique @default(cuid())
+  customerId         String
+  vehicleId          String
+  branchOutId        String
+  branchInId         String?
+  pickupTime         DateTime
+  returnTime         DateTime?
+  actualReturnTime   DateTime?
+  status             RentalStatus  @default(DRAFT)
+  paymentStatus      PaymentStatus @default(PENDING)
+  depositStatus      DepositStatus?
+  depositAmount      Decimal?      @db.Decimal(10, 2)
+  totalAmount        Decimal?      @db.Decimal(10, 2)
+  dailyRate          Decimal       @db.Decimal(10, 2)
+  pickupInspectionId String?
+  returnInspectionId String?
+  notes              String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
-  customer        Customer      @relation(fields: [customerId], references: [id])
-  vehicle         Vehicle       @relation(fields: [vehicleId], references: [id])
-  branchOut       Branch        @relation("BranchOut", fields: [branchOutId], references: [id])
-  branchIn        Branch?       @relation("BranchIn", fields: [branchInId], references: [id])
-  payments        Payment[]
+  customer           Customer      @relation(fields: [customerId], references: [id])
+  vehicle            Vehicle       @relation(fields: [vehicleId], references: [id])
+  branchOut          Branch        @relation("BranchOut", fields: [branchOutId], references: [id])
+  branchIn           Branch?       @relation("BranchIn", fields: [branchInId], references: [id])
+  payments           Payment[]
+  inspections        Inspection[]
+  claims             Claim[]
 
   @@index([status])
   @@index([customerId])
@@ -341,10 +500,15 @@ model Task {
   creatorId        String
   priority         TaskPriority     @default(MEDIUM)
   dueAt            DateTime?
+  slaDeadline      DateTime?
+  escalationLevel  Int              @default(0)
+  sourceType       String?          // e.g. "inspection", "maintenance", "system"
+  sourceId         String?          // ID of the entity that auto-created this task
   status           TaskStatus       @default(PENDING)
   branchId         String
   shiftId          String?
   handoverNotes    String?
+  checklistItems   Json?            // [{label, checked}]
   completedAt      DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
@@ -361,23 +525,29 @@ model Task {
 }
 
 model Incident {
-  id                     String           @id @default(cuid())
-  vehicleId              String
-  branchId               String
-  severity               IncidentSeverity
-  description            String
-  status                 IncidentStatus   @default(REPORTED)
-  claimsStatus           ClaimsStatus     @default(NOT_APPLICABLE)
-  financialImpactEstimate Decimal?        @db.Decimal(10, 2)
-  reportedById           String
-  resolvedAt             DateTime?
-  createdAt              DateTime         @default(now())
-  updatedAt              DateTime         @updatedAt
+  id                      String           @id @default(cuid())
+  vehicleId               String
+  branchId                String
+  rentalId                String?
+  severity                IncidentSeverity
+  description             String
+  damageZones             String[]         @default([])
+  responsibleParty        ResponsibleParty @default(UNKNOWN)
+  status                  IncidentStatus   @default(REPORTED)
+  claimsStatus            ClaimsStatus     @default(NOT_APPLICABLE)
+  financialImpactEstimate Decimal?         @db.Decimal(10, 2)
+  insurerRef              String?
+  restrictedNotes         String?          // visible to claims/management only
+  reportedById            String
+  resolvedAt              DateTime?
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
 
-  vehicle                Vehicle          @relation(fields: [vehicleId], references: [id])
-  branch                 Branch           @relation(fields: [branchId], references: [id])
-  reportedBy             User             @relation("IncidentReporter", fields: [reportedById], references: [id])
-  evidence               IncidentEvidence[]
+  vehicle                 Vehicle          @relation(fields: [vehicleId], references: [id])
+  branch                  Branch           @relation(fields: [branchId], references: [id])
+  reportedBy              User             @relation("IncidentReporter", fields: [reportedById], references: [id])
+  evidence                IncidentEvidence[]
+  claims                  Claim[]
 
   @@index([vehicleId])
   @@index([status])
@@ -386,16 +556,18 @@ model Incident {
 }
 
 model IncidentEvidence {
-  id           String       @id @default(cuid())
-  incidentId   String
-  type         EvidenceType
-  url          String
-  description  String?
-  uploadedById String
-  createdAt    DateTime     @default(now())
+  id            String       @id @default(cuid())
+  incidentId    String
+  type          EvidenceType
+  url           String
+  description   String?
+  uploadedById  String
+  uploadContext String?      // "return_inspection", "standalone", "claim"
+  isImmutable   Boolean      @default(false)
+  createdAt     DateTime     @default(now())
 
-  incident     Incident     @relation(fields: [incidentId], references: [id])
-  uploadedBy   User         @relation(fields: [uploadedById], references: [id])
+  incident      Incident     @relation(fields: [incidentId], references: [id])
+  uploadedBy    User         @relation(fields: [uploadedById], references: [id])
 
   @@map("incident_evidence")
 }
@@ -443,15 +615,18 @@ model ChatChannel {
 }
 
 model ChatMessage {
-  id        String      @id @default(cuid())
-  channelId String
-  senderId  String
-  content   String
-  editedAt  DateTime?
-  createdAt DateTime    @default(now())
+  id               String           @id @default(cuid())
+  channelId        String
+  senderId         String
+  content          String
+  linkedEntityType LinkedEntityType?
+  linkedEntityId   String?
+  convertedToTaskId String?
+  editedAt         DateTime?
+  createdAt        DateTime         @default(now())
 
-  channel   ChatChannel @relation(fields: [channelId], references: [id])
-  sender    User        @relation(fields: [senderId], references: [id])
+  channel          ChatChannel      @relation(fields: [channelId], references: [id])
+  sender           User             @relation(fields: [senderId], references: [id])
 
   @@index([channelId, createdAt])
   @@map("chat_messages")
@@ -510,6 +685,192 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// ─── INSPECTION MODELS ──────────────────────────────────
+
+model Inspection {
+  id                 String           @id @default(cuid())
+  rentalId           String
+  vehicleId          String
+  type               InspectionType
+  inspectorId        String
+  branchId           String
+  status             InspectionStatus @default(PENDING)
+  fuelLevel          Int?
+  mileage            Int?
+  overallCondition   String?
+  discrepancyFlag    Boolean          @default(false)
+  discrepancyNotes   String?
+  completedAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  rental             Rental           @relation(fields: [rentalId], references: [id])
+  vehicle            Vehicle          @relation(fields: [vehicleId], references: [id])
+  inspector          User             @relation(fields: [inspectorId], references: [id])
+  items              InspectionItem[]
+
+  @@index([rentalId])
+  @@index([vehicleId])
+  @@map("inspections")
+}
+
+model InspectionItem {
+  id                String             @id @default(cuid())
+  inspectionId      String
+  category          CheckpointCategory
+  checkpointName    String
+  condition         CheckpointCondition @default(OK)
+  photoRef          String?
+  notes             String?
+  previousCondition String?            // for return comparison vs pickup
+  createdAt         DateTime           @default(now())
+
+  inspection        Inspection         @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@index([inspectionId])
+  @@map("inspection_items")
+}
+
+// ─── MAINTENANCE MODELS ─────────────────────────────────
+
+model MaintenanceRequest {
+  id                String            @id @default(cuid())
+  vehicleId         String
+  branchId          String
+  requestedById     String
+  type              MaintenanceType
+  priority          MaintenancePriority @default(MEDIUM)
+  status            MaintenanceStatus  @default(REQUESTED)
+  description       String
+  estimatedCost     Decimal?          @db.Decimal(10, 2)
+  actualCost        Decimal?          @db.Decimal(10, 2)
+  estimatedDuration Int?              // minutes
+  actualDuration    Int?              // minutes
+  scheduledDate     DateTime?
+  completedDate     DateTime?
+  technicianNotes   String?
+  fleetImpact       FleetImpact       @default(AVAILABLE_AFTER)
+  approvedById      String?
+  approvedAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  vehicle           Vehicle           @relation(fields: [vehicleId], references: [id])
+  parts             MaintenancePart[]
+
+  @@index([vehicleId])
+  @@index([status])
+  @@map("maintenance_requests")
+}
+
+model MaintenancePart {
+  id                   String             @id @default(cuid())
+  maintenanceRequestId String
+  name                 String
+  partNumber           String?
+  quantity             Int                @default(1)
+  unitCost             Decimal?           @db.Decimal(10, 2)
+  createdAt            DateTime           @default(now())
+
+  maintenanceRequest   MaintenanceRequest @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_parts")
+}
+
+// ─── CLAIMS MODELS ──────────────────────────────────────
+
+model Claim {
+  id                String           @id @default(cuid())
+  incidentId        String
+  vehicleId         String
+  rentalId          String?
+  customerId        String?
+  status            ClaimStatus      @default(DRAFT)
+  claimType         ClaimType
+  responsibleParty  ResponsibleParty @default(UNKNOWN)
+  amount            Decimal?         @db.Decimal(10, 2)
+  currency          String           @default("EUR")
+  insurerRef        String?
+  assessorNotes     String?          // restricted visibility
+  settlementAmount  Decimal?         @db.Decimal(10, 2)
+  filedById         String
+  filedAt           DateTime?
+  resolvedAt        DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  incident          Incident         @relation(fields: [incidentId], references: [id])
+  rental            Rental?          @relation(fields: [rentalId], references: [id])
+  customer          Customer?        @relation(fields: [customerId], references: [id])
+  documents         ClaimDocument[]
+
+  @@index([incidentId])
+  @@index([status])
+  @@map("claims")
+}
+
+model ClaimDocument {
+  id          String   @id @default(cuid())
+  claimId     String
+  type        String   // estimate, invoice, correspondence, legal
+  url         String
+  description String?
+  isImmutable Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  claim       Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@map("claim_documents")
+}
+
+// ─── APPROVAL ENGINE ────────────────────────────────────
+
+model ApprovalRequest {
+  id              String         @id @default(cuid())
+  type            ApprovalType
+  requesterId     String
+  approverId      String?
+  status          ApprovalStatus @default(PENDING)
+  entityType      String
+  entityId        String
+  payload         Json           // action-specific data
+  reason          String
+  approverNotes   String?
+  escalationLevel Int            @default(0)
+  expiresAt       DateTime?
+  requestedAt     DateTime       @default(now())
+  decidedAt       DateTime?
+
+  requester       User           @relation("ApprovalRequester", fields: [requesterId], references: [id])
+  approver        User?          @relation("ApprovalDecider", fields: [approverId], references: [id])
+
+  @@index([status, type])
+  @@index([requesterId])
+  @@index([entityType, entityId])
+  @@map("approval_requests")
+}
+
+// ─── NOTIFICATIONS ──────────────────────────────────────
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  type       NotificationType
+  title      String
+  body       String?
+  entityType String?
+  entityId   String?
+  isRead     Boolean          @default(false)
+  readAt     DateTime?
+  createdAt  DateTime         @default(now())
+
+  user       User             @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
 // ─── WORKSPACE MODELS ───────────────────────────────────
 
 model Conversation {
@@ -556,8 +917,16 @@ model Shortcut {
   inputSchema             Json?
   defaultInputs           Json?
   outputMode              String   @default("chat")
+  requiredContextKeys     String[] @default([])
+  requiredPermissions     String[] @default([])
+  allowedEntityStates     String[] @default([])
   permissionScopeRequired String?
   visibilityScope         String   @default("private")
+  version                 Int      @default(1)
+  needsRepair             Boolean  @default(false)
+  repairReason            String?
+  executionCount          Int      @default(0)
+  lastExecutedAt          DateTime?
   createdById             String
   isActive                Boolean  @default(true)
   createdAt               DateTime @default(now())

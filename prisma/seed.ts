@@ -1,4 +1,4 @@
-import { PrismaClient, Role, VehicleStatus, VehicleClass, RentalStatus, TaskPriority, TaskStatus, IncidentSeverity, IncidentStatus, PaymentMethod, PaymentType, PaymentStatus, ChannelType, ShiftStatus } from "@prisma/client";
+import { PrismaClient, Role, VehicleStatus, VehicleClass, RentalStatus, TaskPriority, TaskStatus, IncidentSeverity, IncidentStatus, PaymentMethod, PaymentType, PaymentStatus, ChannelType, ShiftStatus, MaintenanceType, MaintenancePriority, MaintenanceStatus, InspectionType, ClaimType, ResponsibleParty, ApprovalType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -7,6 +7,17 @@ async function main() {
   console.log("🌱 Seeding database...");
 
   // Clean existing data
+  await prisma.notification.deleteMany();
+  await prisma.approvalRequest.deleteMany();
+  await prisma.claimDocument.deleteMany();
+  await prisma.claim.deleteMany();
+  await prisma.maintenancePart.deleteMany();
+  await prisma.maintenanceRequest.deleteMany();
+  await prisma.inspectionItem.deleteMany();
+  await prisma.inspection.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.conversation.deleteMany();
+  await prisma.shortcut.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.chatMessage.deleteMany();
   await prisma.chatParticipant.deleteMany();
@@ -64,16 +75,16 @@ async function main() {
 
   // ─── Vehicles ───
   const vehicles = await Promise.all([
-    prisma.vehicle.create({ data: { plate: "ΑΒΚ-1234", branchId: branch1.id, class: VehicleClass.ECONOMY, make: "Toyota", model: "Yaris", year: 2024, color: "White", status: VehicleStatus.AVAILABLE, mileage: 12500, fuelLevel: 85 } }),
-    prisma.vehicle.create({ data: { plate: "ΑΒΚ-5678", branchId: branch1.id, class: VehicleClass.COMPACT, make: "Volkswagen", model: "Golf", year: 2023, color: "Silver", status: VehicleStatus.ON_RENT, mileage: 28000, fuelLevel: 60 } }),
-    prisma.vehicle.create({ data: { plate: "ΑΒΚ-9012", branchId: branch1.id, class: VehicleClass.SUV, make: "Nissan", model: "Qashqai", year: 2024, color: "Black", status: VehicleStatus.AVAILABLE, mileage: 8900, fuelLevel: 92 } }),
-    prisma.vehicle.create({ data: { plate: "ΒΓΔ-3456", branchId: branch2.id, class: VehicleClass.MIDSIZE, make: "Hyundai", model: "Tucson", year: 2023, color: "Blue", status: VehicleStatus.MAINTENANCE_PENDING, mileage: 45000, fuelLevel: 40 } }),
-    prisma.vehicle.create({ data: { plate: "ΒΓΔ-7890", branchId: branch2.id, class: VehicleClass.ECONOMY, make: "Fiat", model: "500", year: 2024, color: "Red", status: VehicleStatus.AVAILABLE, mileage: 5200, fuelLevel: 75 } }),
-    prisma.vehicle.create({ data: { plate: "ΕΖΗ-1111", branchId: branch1.id, class: VehicleClass.LUXURY, make: "BMW", model: "5 Series", year: 2024, color: "Black", status: VehicleStatus.PICKUP_READY, mileage: 3200, fuelLevel: 100 } }),
-    prisma.vehicle.create({ data: { plate: "ΕΖΗ-2222", branchId: branch3.id, class: VehicleClass.COMPACT, make: "Renault", model: "Clio", year: 2023, color: "White", status: VehicleStatus.AVAILABLE, mileage: 19000, fuelLevel: 65 } }),
-    prisma.vehicle.create({ data: { plate: "ΕΖΗ-3333", branchId: branch3.id, class: VehicleClass.VAN, make: "Mercedes", model: "Vito", year: 2022, color: "Gray", status: VehicleStatus.DAMAGE_HOLD, mileage: 62000, fuelLevel: 30 } }),
-    prisma.vehicle.create({ data: { plate: "ΘΙΚ-4444", branchId: branch1.id, class: VehicleClass.FULLSIZE, make: "Skoda", model: "Superb", year: 2024, color: "Silver", status: VehicleStatus.CLEANING_PENDING, mileage: 15600, fuelLevel: 55 } }),
-    prisma.vehicle.create({ data: { plate: "ΘΙΚ-5555", branchId: branch2.id, class: VehicleClass.ECONOMY, make: "Citroen", model: "C3", year: 2023, color: "Orange", status: VehicleStatus.RETURN_PENDING_CHECKIN, mileage: 31000, fuelLevel: 20 } }),
+    prisma.vehicle.create({ data: { plate: "ΑΒΚ-1234", branchId: branch1.id, class: VehicleClass.ECONOMY, make: "Toyota", model: "Yaris", year: 2024, color: "White", status: VehicleStatus.AVAILABLE, readinessState: "READY", complianceStatus: "COMPLIANT", mileage: 12500, fuelLevel: 85, nextServiceDue: new Date("2026-06-15") } }),
+    prisma.vehicle.create({ data: { plate: "ΑΒΚ-5678", branchId: branch1.id, class: VehicleClass.COMPACT, make: "Volkswagen", model: "Golf", year: 2023, color: "Silver", status: VehicleStatus.ON_RENT, readinessState: "READY", complianceStatus: "COMPLIANT", mileage: 28000, fuelLevel: 60, nextServiceDue: new Date("2026-04-01") } }),
+    prisma.vehicle.create({ data: { plate: "ΑΒΚ-9012", branchId: branch1.id, class: VehicleClass.SUV, make: "Nissan", model: "Qashqai", year: 2024, color: "Black", status: VehicleStatus.AVAILABLE, readinessState: "READY", complianceStatus: "COMPLIANT", mileage: 8900, fuelLevel: 92 } }),
+    prisma.vehicle.create({ data: { plate: "ΒΓΔ-3456", branchId: branch2.id, class: VehicleClass.MIDSIZE, make: "Hyundai", model: "Tucson", year: 2023, color: "Blue", status: VehicleStatus.MAINTENANCE_PENDING, readinessState: "BLOCKED", complianceStatus: "COMPLIANT", mileage: 45000, fuelLevel: 40, downtimeStart: new Date("2026-02-22T10:00:00Z"), downtimeReason: "Scheduled 45k service" } }),
+    prisma.vehicle.create({ data: { plate: "ΒΓΔ-7890", branchId: branch2.id, class: VehicleClass.ECONOMY, make: "Fiat", model: "500", year: 2024, color: "Red", status: VehicleStatus.AVAILABLE, readinessState: "READY", complianceStatus: "COMPLIANT", mileage: 5200, fuelLevel: 75 } }),
+    prisma.vehicle.create({ data: { plate: "ΕΖΗ-1111", branchId: branch1.id, class: VehicleClass.LUXURY, make: "BMW", model: "5 Series", year: 2024, color: "Black", status: VehicleStatus.PICKUP_READY, readinessState: "READY", complianceStatus: "COMPLIANT", mileage: 3200, fuelLevel: 100 } }),
+    prisma.vehicle.create({ data: { plate: "ΕΖΗ-2222", branchId: branch3.id, class: VehicleClass.COMPACT, make: "Renault", model: "Clio", year: 2023, color: "White", status: VehicleStatus.AVAILABLE, readinessState: "READY", complianceStatus: "EXPIRING_SOON", mileage: 19000, fuelLevel: 65, nextInsuranceDue: new Date("2026-03-15") } }),
+    prisma.vehicle.create({ data: { plate: "ΕΖΗ-3333", branchId: branch3.id, class: VehicleClass.VAN, make: "Mercedes", model: "Vito", year: 2022, color: "Gray", status: VehicleStatus.DAMAGE_HOLD, readinessState: "BLOCKED", complianceStatus: "COMPLIANT", mileage: 62000, fuelLevel: 30, downtimeStart: new Date("2026-02-22T16:00:00Z"), downtimeReason: "Rear bumper damage" } }),
+    prisma.vehicle.create({ data: { plate: "ΘΙΚ-4444", branchId: branch1.id, class: VehicleClass.FULLSIZE, make: "Skoda", model: "Superb", year: 2024, color: "Silver", status: VehicleStatus.CLEANING_PENDING, readinessState: "NEEDS_CLEANING", complianceStatus: "COMPLIANT", mileage: 15600, fuelLevel: 55 } }),
+    prisma.vehicle.create({ data: { plate: "ΘΙΚ-5555", branchId: branch2.id, class: VehicleClass.ECONOMY, make: "Citroen", model: "C3", year: 2023, color: "Orange", status: VehicleStatus.RETURN_PENDING_CHECKIN, readinessState: "NEEDS_INSPECTION", complianceStatus: "COMPLIANT", mileage: 31000, fuelLevel: 20 } }),
   ]);
 
   // ─── Customers ───
@@ -199,6 +210,69 @@ async function main() {
       data: { actorId: supervisor.id, action: "incident.create", entityType: "Incident", entityId: incident1.id, newState: { severity: "MAJOR", vehicleId: vehicles[7].id }, branchId: branch3.id, createdAt: new Date("2026-02-22T16:00:00Z") },
     }),
   ]);
+
+  // ─── Maintenance Requests ───
+  await prisma.maintenanceRequest.create({
+    data: {
+      vehicleId: vehicles[3].id, branchId: branch2.id, requestedById: fleetCoord.id,
+      type: MaintenanceType.SCHEDULED, priority: MaintenancePriority.MEDIUM,
+      status: MaintenanceStatus.APPROVED, description: "45,000 km scheduled service — oil change, filters, brake check",
+      estimatedCost: 350, estimatedDuration: 180,
+      scheduledDate: new Date("2026-02-27T09:00:00Z"),
+      approvedById: manager1.id, approvedAt: new Date("2026-02-22T14:00:00Z"),
+    },
+  });
+  await prisma.maintenanceRequest.create({
+    data: {
+      vehicleId: vehicles[7].id, branchId: branch3.id, requestedById: supervisor.id,
+      type: MaintenanceType.UNSCHEDULED, priority: MaintenancePriority.HIGH,
+      status: MaintenanceStatus.REQUESTED, description: "Rear bumper repair needed — damage from parking incident",
+      estimatedCost: 1200, estimatedDuration: 480,
+      fleetImpact: "OUT_OF_SERVICE",
+    },
+  });
+
+  // ─── Inspections ───
+  const pickupInspection = await prisma.inspection.create({
+    data: {
+      rentalId: rental1.id, vehicleId: vehicles[1].id, type: InspectionType.PICKUP,
+      inspectorId: agent1.id, branchId: branch1.id,
+      status: "COMPLETED", fuelLevel: 85, mileage: 27500,
+      overallCondition: "Good", completedAt: new Date("2026-02-20T10:30:00Z"),
+    },
+  });
+  await prisma.inspectionItem.createMany({
+    data: [
+      { inspectionId: pickupInspection.id, category: "EXTERIOR", checkpointName: "Front bumper", condition: "OK" },
+      { inspectionId: pickupInspection.id, category: "EXTERIOR", checkpointName: "Rear bumper", condition: "OK" },
+      { inspectionId: pickupInspection.id, category: "EXTERIOR", checkpointName: "Driver side", condition: "OK" },
+      { inspectionId: pickupInspection.id, category: "EXTERIOR", checkpointName: "Passenger side", condition: "MINOR_DAMAGE", notes: "Small scratch on rear door — pre-existing" },
+      { inspectionId: pickupInspection.id, category: "INTERIOR", checkpointName: "Dashboard & controls", condition: "OK" },
+      { inspectionId: pickupInspection.id, category: "INTERIOR", checkpointName: "Seats & upholstery", condition: "OK" },
+      { inspectionId: pickupInspection.id, category: "MECHANICAL", checkpointName: "Lights", condition: "OK" },
+      { inspectionId: pickupInspection.id, category: "DOCUMENTS", checkpointName: "Insurance card", condition: "OK" },
+    ],
+  });
+
+  // ─── Approval Requests ───
+  await prisma.approvalRequest.create({
+    data: {
+      type: ApprovalType.MAINTENANCE, requesterId: fleetCoord.id,
+      status: "PENDING", entityType: "MaintenanceRequest", entityId: "pending",
+      reason: "Mercedes Vito bumper repair — estimated cost €1,200 exceeds threshold",
+      payload: { vehicleId: vehicles[7].id, estimatedCost: 1200, description: "Rear bumper repair" },
+      expiresAt: new Date("2026-02-25T17:00:00Z"),
+    },
+  });
+
+  // ─── Notifications ───
+  await prisma.notification.createMany({
+    data: [
+      { userId: manager1.id, type: "TASK_ASSIGNED", title: "New urgent task", body: "Mercedes Vito damage assessment needs attention", entityType: "Task", entityId: "placeholder" },
+      { userId: fleetCoord.id, type: "MAINTENANCE_UPDATE", title: "Tucson service approved", body: "Scheduled for Feb 27", entityType: "MaintenanceRequest", entityId: "placeholder" },
+      { userId: agent1.id, type: "TASK_ASSIGNED", title: "BMW 5 Series pickup prep", body: "Pickup at 14:00 — vehicle needs full tank and final check" },
+    ],
+  });
 
   // ─── Shortcuts ───
   await prisma.shortcut.deleteMany();

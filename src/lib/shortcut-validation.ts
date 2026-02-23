@@ -12,7 +12,12 @@ export interface ShortcutDef {
   toolSequence?: unknown;
   defaultInputs?: unknown;
   isActive: boolean;
+  needsRepair?: boolean;
+  repairReason?: string | null;
   permissionScopeRequired?: string | null;
+  requiredContextKeys?: string[];
+  requiredPermissions?: string[];
+  allowedEntityStates?: string[];
 }
 
 export interface ShortcutContext {
@@ -57,6 +62,19 @@ export function validateShortcutExecution(
       missingPermissions: [],
       configValid: true,
       validationCode: "inactive",
+    };
+  }
+
+  // 1b. Check if shortcut needs repair
+  if (shortcut.needsRepair) {
+    return {
+      visible: true,
+      enabled: false,
+      disabledReason: shortcut.repairReason || "Shortcut needs repair",
+      missingContext: [],
+      missingPermissions: [],
+      configValid: false,
+      validationCode: "needs_repair",
     };
   }
 
@@ -116,11 +134,47 @@ export function validateShortcutExecution(
     missingContext.push("conversationId");
   }
 
+  // 3b. Check required context keys from shortcut schema
+  if (shortcut.requiredContextKeys && shortcut.requiredContextKeys.length > 0) {
+    const contextMap: Record<string, unknown> = {
+      conversationId: context.conversationId,
+      entityId: context.entityId,
+      entityType: context.entityType,
+      entityState: context.entityState,
+    };
+    for (const key of shortcut.requiredContextKeys) {
+      if (!contextMap[key]) {
+        missingContext.push(key);
+      }
+    }
+  }
+
+  // 3c. Check allowed entity states
+  if (
+    shortcut.allowedEntityStates &&
+    shortcut.allowedEntityStates.length > 0 &&
+    context.entityState
+  ) {
+    if (!shortcut.allowedEntityStates.includes(context.entityState)) {
+      disabledReason = `Available only when status is ${shortcut.allowedEntityStates.join(" or ")}`;
+      validationCode = "invalid_entity_state";
+    }
+  }
+
   // 4. Check permissions
   // a) Check shortcut-level permission scope
   if (shortcut.permissionScopeRequired) {
     if (!hasPermission(userRole as Role, shortcut.permissionScopeRequired as Permission)) {
       missingPermissions.push(shortcut.permissionScopeRequired);
+    }
+  }
+
+  // 4b. Check required permissions from shortcut schema
+  if (shortcut.requiredPermissions && shortcut.requiredPermissions.length > 0) {
+    for (const perm of shortcut.requiredPermissions) {
+      if (!hasPermission(userRole as Role, perm as Permission) && !missingPermissions.includes(perm)) {
+        missingPermissions.push(perm);
+      }
     }
   }
 

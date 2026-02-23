@@ -11,6 +11,11 @@ import { branchRouter } from "@/server/routers/branch";
 import { workspaceRouter } from "@/server/routers/workspace";
 import { toolExecRouter } from "@/server/routers/tool-exec";
 import { shortcutRouter } from "@/server/routers/shortcuts";
+import { approvalRouter } from "@/server/routers/approval";
+import { maintenanceRouter } from "@/server/routers/maintenance";
+import { inspectionRouter } from "@/server/routers/inspection";
+import { claimRouter } from "@/server/routers/claim";
+import { notificationRouter } from "@/server/routers/notification";
 
 export const appRouter = router({
   fleet: fleetRouter,
@@ -25,6 +30,11 @@ export const appRouter = router({
   workspace: workspaceRouter,
   toolExec: toolExecRouter,
   shortcut: shortcutRouter,
+  approval: approvalRouter,
+  maintenance: maintenanceRouter,
+  inspection: inspectionRouter,
+  claim: claimRouter,
+  notification: notificationRouter,
 });
 
 export type AppRouter = typeof appRouter;

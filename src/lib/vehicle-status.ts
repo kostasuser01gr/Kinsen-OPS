@@ -1,22 +1,30 @@
-export const VEHICLE_STATUS_TRANSITIONS: Record<string, string[]> = {
-  AVAILABLE: ["RESERVED_PREP_PENDING", "MAINTENANCE_PENDING", "OUT_OF_SERVICE", "TRANSFER_PENDING"],
-  RESERVED_PREP_PENDING: ["PICKUP_READY", "AVAILABLE"],
-  PICKUP_READY: ["ON_RENT", "AVAILABLE"],
-  ON_RENT: ["RETURN_PENDING_CHECKIN"],
-  RETURN_PENDING_CHECKIN: ["INSPECTION_IN_PROGRESS"],
-  INSPECTION_IN_PROGRESS: ["CLEANING_PENDING", "DAMAGE_HOLD", "AVAILABLE"],
-  CLEANING_PENDING: ["AVAILABLE", "MAINTENANCE_PENDING"],
-  MAINTENANCE_PENDING: ["AVAILABLE", "OUT_OF_SERVICE"],
-  DAMAGE_HOLD: ["MAINTENANCE_PENDING", "OUT_OF_SERVICE", "AVAILABLE"],
-  COMPLIANCE_HOLD: ["AVAILABLE", "OUT_OF_SERVICE"],
-  TRANSFER_PENDING: ["TRANSFER_IN_TRANSIT"],
-  TRANSFER_IN_TRANSIT: ["AVAILABLE"],
-  OUT_OF_SERVICE: ["AVAILABLE", "MAINTENANCE_PENDING"],
-};
+import { vehicleStateMachine } from "./state-machine";
 
-export function isValidTransition(from: string, to: string): boolean {
-  const allowed = VEHICLE_STATUS_TRANSITIONS[from];
-  return allowed ? allowed.includes(to) : false;
+export const VEHICLE_STATUS_TRANSITIONS = Object.fromEntries(
+  Object.entries({
+    AVAILABLE: ["RESERVED_PREP_PENDING", "MAINTENANCE_PENDING", "OUT_OF_SERVICE", "TRANSFER_PENDING"],
+    RESERVED_PREP_PENDING: ["PICKUP_READY", "AVAILABLE"],
+    PICKUP_READY: ["ON_RENT", "AVAILABLE"],
+    ON_RENT: ["RETURN_PENDING_CHECKIN"],
+    RETURN_PENDING_CHECKIN: ["INSPECTION_IN_PROGRESS"],
+    INSPECTION_IN_PROGRESS: ["CLEANING_PENDING", "DAMAGE_HOLD", "AVAILABLE"],
+    CLEANING_PENDING: ["AVAILABLE", "MAINTENANCE_PENDING"],
+    MAINTENANCE_PENDING: ["AVAILABLE", "OUT_OF_SERVICE"],
+    DAMAGE_HOLD: ["MAINTENANCE_PENDING", "OUT_OF_SERVICE", "AVAILABLE"],
+    COMPLIANCE_HOLD: ["AVAILABLE", "OUT_OF_SERVICE"],
+    TRANSFER_PENDING: ["TRANSFER_IN_TRANSIT"],
+    TRANSFER_IN_TRANSIT: ["AVAILABLE"],
+    OUT_OF_SERVICE: ["AVAILABLE", "MAINTENANCE_PENDING"],
+  })
+);
+
+export function isValidTransition(from: string, to: string, hasOverride = false): boolean {
+  const result = vehicleStateMachine.validate(from, to, hasOverride);
+  return result.valid;
+}
+
+export function getValidTransitions(from: string): string[] {
+  return vehicleStateMachine.getAllowedTransitions(from);
 }
 
 export const VEHICLE_STATUS_LABELS: Record<string, string> = {
