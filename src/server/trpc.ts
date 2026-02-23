@@ -25,10 +25,29 @@ const enforceAuth = t.middleware(async ({ ctx, next }) => {
   if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
+
+  // Verify user still exists in DB (handles stale sessions after reseed/migration)
+  const dbUser = await ctx.db.user.findUnique({
+    where: { id: ctx.session.user.id as string },
+    select: { id: true, role: true, branchId: true, isActive: true },
+  });
+
+  if (!dbUser || !dbUser.isActive) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Session expired. Please log in again.",
+    });
+  }
+
   return next({
     ctx: {
       session: ctx.session,
-      user: ctx.session.user,
+      user: {
+        ...ctx.session.user,
+        id: dbUser.id,
+        role: dbUser.role,
+        branchId: dbUser.branchId,
+      },
     },
   });
 });

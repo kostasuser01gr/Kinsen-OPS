@@ -19,7 +19,24 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { staleTime: 5 * 1000, refetchOnWindowFocus: false },
+          queries: {
+            staleTime: 5 * 1000,
+            refetchOnWindowFocus: false,
+            retry: (failureCount, error) => {
+              // Don't retry on auth errors — redirect to login instead
+              const trpcError = error as { data?: { code?: string } };
+              if (trpcError?.data?.code === "UNAUTHORIZED") {
+                if (typeof window !== "undefined") {
+                  window.location.href = "/login";
+                }
+                return false;
+              }
+              return failureCount < 2;
+            },
+          },
+          mutations: {
+            retry: false,
+          },
         },
       })
   );
