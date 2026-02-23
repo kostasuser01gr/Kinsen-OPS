@@ -34,32 +34,32 @@ async function main() {
     data: { name: "Thessaloniki Airport", code: "SKG-APT", address: "Thessaloniki Airport", phone: "+30-231-1234567", timezone: "Europe/Athens" },
   });
 
-  // ─── Users ───
-  const passwordHash = await bcrypt.hash("password123", 12);
+  // ─── Users (PIN: 4-digit, hashed with bcrypt) ───
+  const pinHash = await bcrypt.hash("1234", 12);
 
   const admin = await prisma.user.create({
-    data: { email: "admin@kinsen.com", name: "System Admin", passwordHash, role: Role.ADMIN, branchId: branch1.id },
+    data: { identifier: "admin", name: "System Admin", pinHash, email: "admin@kinsen.com", role: Role.ADMIN, branchId: branch1.id },
   });
   const manager1 = await prisma.user.create({
-    data: { email: "maria@kinsen.com", name: "Maria Papadopoulou", passwordHash, role: Role.BRANCH_MANAGER, branchId: branch1.id },
+    data: { identifier: "maria.p", name: "Maria Papadopoulou", pinHash, email: "maria@kinsen.com", role: Role.BRANCH_MANAGER, branchId: branch1.id },
   });
   const agent1 = await prisma.user.create({
-    data: { email: "nikos@kinsen.com", name: "Nikos Georgiou", passwordHash, role: Role.BRANCH_AGENT, branchId: branch1.id },
+    data: { identifier: "nikos.g", name: "Nikos Georgiou", pinHash, email: "nikos@kinsen.com", role: Role.BRANCH_AGENT, branchId: branch1.id },
   });
   const agent2 = await prisma.user.create({
-    data: { email: "elena@kinsen.com", name: "Elena Dimitriou", passwordHash, role: Role.BRANCH_AGENT, branchId: branch2.id },
+    data: { identifier: "elena.d", name: "Elena Dimitriou", pinHash, email: "elena@kinsen.com", role: Role.BRANCH_AGENT, branchId: branch2.id },
   });
   const fleetCoord = await prisma.user.create({
-    data: { email: "kostas@kinsen.com", name: "Kostas Nikolaou", passwordHash, role: Role.FLEET_COORDINATOR, branchId: branch1.id },
+    data: { identifier: "kostas.n", name: "Kostas Nikolaou", pinHash, email: "kostas@kinsen.com", role: Role.FLEET_COORDINATOR, branchId: branch1.id },
   });
   const financeStaff = await prisma.user.create({
-    data: { email: "anna@kinsen.com", name: "Anna Katsarou", passwordHash, role: Role.FINANCE_STAFF, branchId: branch1.id },
+    data: { identifier: "anna.k", name: "Anna Katsarou", pinHash, email: "anna@kinsen.com", role: Role.FINANCE_STAFF, branchId: branch1.id },
   });
   const supervisor = await prisma.user.create({
-    data: { email: "dimitris@kinsen.com", name: "Dimitris Alexiou", passwordHash, role: Role.SHIFT_SUPERVISOR, branchId: branch1.id },
+    data: { identifier: "dimitris.a", name: "Dimitris Alexiou", pinHash, email: "dimitris@kinsen.com", role: Role.SHIFT_SUPERVISOR, branchId: branch1.id },
   });
   const opsDir = await prisma.user.create({
-    data: { email: "director@kinsen.com", name: "Giorgos Papadakis", passwordHash, role: Role.OPERATIONS_DIRECTOR },
+    data: { identifier: "director", name: "Giorgos Papadakis", pinHash, email: "director@kinsen.com", role: Role.OPERATIONS_DIRECTOR },
   });
 
   // ─── Vehicles ───
@@ -202,15 +202,15 @@ async function main() {
 
   console.log("✅ Seed completed successfully!");
   console.log("");
-  console.log("Demo accounts (all use password: password123):");
-  console.log("  admin@kinsen.com      - System Admin");
-  console.log("  maria@kinsen.com      - Branch Manager (Athens Airport)");
-  console.log("  nikos@kinsen.com      - Branch Agent (Athens Airport)");
-  console.log("  elena@kinsen.com      - Branch Agent (Athens Downtown)");
-  console.log("  kostas@kinsen.com     - Fleet Coordinator");
-  console.log("  anna@kinsen.com       - Finance Staff");
-  console.log("  dimitris@kinsen.com   - Shift Supervisor");
-  console.log("  director@kinsen.com   - Operations Director");
+  console.log("Demo accounts (all use PIN: 1234):");
+  console.log("  admin          - System Admin");
+  console.log("  maria.p        - Branch Manager (Athens Airport)");
+  console.log("  nikos.g        - Branch Agent (Athens Airport)");
+  console.log("  elena.d        - Branch Agent (Athens Downtown)");
+  console.log("  kostas.n       - Fleet Coordinator");
+  console.log("  anna.k         - Finance Staff");
+  console.log("  dimitris.a     - Shift Supervisor");
+  console.log("  director       - Operations Director");
 }
 
 main()
