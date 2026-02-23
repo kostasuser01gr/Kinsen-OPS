@@ -1,0 +1,504 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+// ─── ENUMS ──────────────────────────────────────────────
+
+enum Role {
+  BRANCH_AGENT
+  SHIFT_SUPERVISOR
+  BRANCH_MANAGER
+  FLEET_COORDINATOR
+  DAMAGE_CLAIMS_STAFF
+  FINANCE_STAFF
+  FINANCE_MANAGER
+  OPERATIONS_DIRECTOR
+  ADMIN
+  AUDITOR
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  RESERVED_PREP_PENDING
+  PICKUP_READY
+  ON_RENT
+  RETURN_PENDING_CHECKIN
+  INSPECTION_IN_PROGRESS
+  CLEANING_PENDING
+  MAINTENANCE_PENDING
+  DAMAGE_HOLD
+  COMPLIANCE_HOLD
+  TRANSFER_PENDING
+  TRANSFER_IN_TRANSIT
+  OUT_OF_SERVICE
+}
+
+enum VehicleClass {
+  ECONOMY
+  COMPACT
+  MIDSIZE
+  FULLSIZE
+  SUV
+  LUXURY
+  VAN
+  TRUCK
+}
+
+enum RentalStatus {
+  DRAFT
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  REFUND_PENDING
+  REFUNDED
+  VOID
+}
+
+enum DepositStatus {
+  HELD
+  PARTIAL_RELEASE
+  RELEASED
+  FORFEITED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  BLOCKED
+}
+
+enum LinkedEntityType {
+  VEHICLE
+  RENTAL
+  INCIDENT
+  PAYMENT
+  BRANCH
+  SHIFT
+}
+
+enum IncidentSeverity {
+  MINOR
+  MODERATE
+  MAJOR
+  CRITICAL
+}
+
+enum IncidentStatus {
+  REPORTED
+  UNDER_REVIEW
+  VERIFIED
+  AWAITING_APPROVAL
+  RESOLVED
+  CLOSED
+}
+
+enum ClaimsStatus {
+  NOT_APPLICABLE
+  PENDING
+  FILED
+  IN_PROGRESS
+  SETTLED
+  DENIED
+}
+
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  ONLINE
+  OTHER
+}
+
+enum PaymentType {
+  RENTAL_CHARGE
+  DEPOSIT
+  DEPOSIT_REFUND
+  DAMAGE_CHARGE
+  FUEL_CHARGE
+  LATE_FEE
+  EXTRA_CHARGE
+  REFUND
+  ADJUSTMENT
+}
+
+enum ReconciliationState {
+  UNRECONCILED
+  MATCHED
+  MISMATCHED
+  EXCEPTION
+}
+
+enum ChannelType {
+  DIRECT
+  TEAM
+  BRANCH
+  DEPARTMENT
+  CONTEXTUAL
+}
+
+enum ShiftStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum EvidenceType {
+  PHOTO
+  VIDEO
+  DOCUMENT
+  NOTE
+}
+
+// ─── MODELS ─────────────────────────────────────────────
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  address   String?
+  phone     String?
+  timezone  String   @default("UTC")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  vehicles       Vehicle[]
+  rentalsOut     Rental[]       @relation("BranchOut")
+  rentalsIn      Rental[]       @relation("BranchIn")
+  tasks          Task[]
+  incidents      Incident[]
+  shifts         Shift[]
+  chatChannels   ChatChannel[]
+  auditLogs      AuditLog[]
+
+  @@map("branches")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(BRANCH_AGENT)
+  branchId     String?
+  isActive     Boolean  @default(true)
+  avatarUrl    String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  branch       Branch?  @relation(fields: [branchId], references: [id])
+
+  assignedTasks     Task[]              @relation("TaskAssignee")
+  createdTasks      Task[]              @relation("TaskCreator")
+  reportedIncidents Incident[]          @relation("IncidentReporter")
+  uploadedEvidence  IncidentEvidence[]
+  approvedPayments  Payment[]           @relation("PaymentApprover")
+  chatMessages      ChatMessage[]
+  chatParticipants  ChatParticipant[]
+  supervisedShifts  Shift[]             @relation("ShiftSupervisor")
+  auditLogs         AuditLog[]
+  statusChanges     VehicleStatusHistory[]
+
+  @@map("users")
+}
+
+model Vehicle {
+  id             String        @id @default(cuid())
+  plate          String        @unique
+  vin            String?       @unique
+  internalCode   String?       @unique
+  branchId       String
+  class          VehicleClass
+  make           String
+  model          String
+  year           Int
+  color          String?
+  status         VehicleStatus @default(AVAILABLE)
+  mileage        Int           @default(0)
+  fuelLevel      Int?          // percentage 0-100
+  isActive       Boolean       @default(true)
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  branch         Branch        @relation(fields: [branchId], references: [id])
+  rentals        Rental[]
+  incidents      Incident[]
+  statusHistory  VehicleStatusHistory[]
+
+  @@index([branchId, status])
+  @@map("vehicles")
+}
+
+model VehicleStatusHistory {
+  id         String        @id @default(cuid())
+  vehicleId  String
+  fromStatus VehicleStatus
+  toStatus   VehicleStatus
+  reason     String?
+  actorId    String
+  createdAt  DateTime      @default(now())
+
+  vehicle    Vehicle       @relation(fields: [vehicleId], references: [id])
+  actor      User          @relation(fields: [actorId], references: [id])
+
+  @@index([vehicleId, createdAt])
+  @@map("vehicle_status_history")
+}
+
+model Customer {
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String?
+  phone         String
+  licenseNumber String
+  idDocument    String?
+  address       String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  rentals       Rental[]
+
+  @@index([lastName, firstName])
+  @@map("customers")
+}
+
+model Rental {
+  id              String        @id @default(cuid())
+  contractNumber  String        @unique @default(cuid())
+  customerId      String
+  vehicleId       String
+  branchOutId     String
+  branchInId      String?
+  pickupTime      DateTime
+  returnTime      DateTime?
+  actualReturnTime DateTime?
+  status          RentalStatus  @default(DRAFT)
+  paymentStatus   PaymentStatus @default(PENDING)
+  depositStatus   DepositStatus?
+  depositAmount   Decimal?      @db.Decimal(10, 2)
+  totalAmount     Decimal?      @db.Decimal(10, 2)
+  dailyRate       Decimal       @db.Decimal(10, 2)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  vehicle         Vehicle       @relation(fields: [vehicleId], references: [id])
+  branchOut       Branch        @relation("BranchOut", fields: [branchOutId], references: [id])
+  branchIn        Branch?       @relation("BranchIn", fields: [branchInId], references: [id])
+  payments        Payment[]
+
+  @@index([status])
+  @@index([customerId])
+  @@index([vehicleId])
+  @@map("rentals")
+}
+
+model Task {
+  id               String           @id @default(cuid())
+  type             String
+  title            String
+  description      String?
+  linkedEntityType LinkedEntityType?
+  linkedEntityId   String?
+  assigneeId       String?
+  creatorId        String
+  priority         TaskPriority     @default(MEDIUM)
+  dueAt            DateTime?
+  status           TaskStatus       @default(PENDING)
+  branchId         String
+  shiftId          String?
+  handoverNotes    String?
+  completedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  assignee         User?            @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator          User             @relation("TaskCreator", fields: [creatorId], references: [id])
+  branch           Branch           @relation(fields: [branchId], references: [id])
+  shift            Shift?           @relation(fields: [shiftId], references: [id])
+
+  @@index([status, priority])
+  @@index([assigneeId])
+  @@index([branchId])
+  @@map("tasks")
+}
+
+model Incident {
+  id                     String           @id @default(cuid())
+  vehicleId              String
+  branchId               String
+  severity               IncidentSeverity
+  description            String
+  status                 IncidentStatus   @default(REPORTED)
+  claimsStatus           ClaimsStatus     @default(NOT_APPLICABLE)
+  financialImpactEstimate Decimal?        @db.Decimal(10, 2)
+  reportedById           String
+  resolvedAt             DateTime?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  vehicle                Vehicle          @relation(fields: [vehicleId], references: [id])
+  branch                 Branch           @relation(fields: [branchId], references: [id])
+  reportedBy             User             @relation("IncidentReporter", fields: [reportedById], references: [id])
+  evidence               IncidentEvidence[]
+
+  @@index([vehicleId])
+  @@index([status])
+  @@index([branchId])
+  @@map("incidents")
+}
+
+model IncidentEvidence {
+  id           String       @id @default(cuid())
+  incidentId   String
+  type         EvidenceType
+  url          String
+  description  String?
+  uploadedById String
+  createdAt    DateTime     @default(now())
+
+  incident     Incident     @relation(fields: [incidentId], references: [id])
+  uploadedBy   User         @relation(fields: [uploadedById], references: [id])
+
+  @@map("incident_evidence")
+}
+
+model Payment {
+  id                  String              @id @default(cuid())
+  rentalId            String
+  amount              Decimal             @db.Decimal(10, 2)
+  method              PaymentMethod
+  status              PaymentStatus       @default(PENDING)
+  type                PaymentType
+  reconciliationState ReconciliationState @default(UNRECONCILED)
+  invoiceRef          String?
+  receiptRef          String?
+  approvedById        String?
+  reason              String?
+  notes               String?
+  paidAt              DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  rental              Rental              @relation(fields: [rentalId], references: [id])
+  approvedBy          User?               @relation("PaymentApprover", fields: [approvedById], references: [id])
+
+  @@index([rentalId])
+  @@index([status])
+  @@map("payments")
+}
+
+model ChatChannel {
+  id               String      @id @default(cuid())
+  name             String?
+  type             ChannelType
+  branchId         String?
+  linkedEntityType LinkedEntityType?
+  linkedEntityId   String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  branch           Branch?     @relation(fields: [branchId], references: [id])
+  messages         ChatMessage[]
+  participants     ChatParticipant[]
+
+  @@map("chat_channels")
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  channelId String
+  senderId  String
+  content   String
+  editedAt  DateTime?
+  createdAt DateTime    @default(now())
+
+  channel   ChatChannel @relation(fields: [channelId], references: [id])
+  sender    User        @relation(fields: [senderId], references: [id])
+
+  @@index([channelId, createdAt])
+  @@map("chat_messages")
+}
+
+model ChatParticipant {
+  channelId  String
+  userId     String
+  lastReadAt DateTime?
+  joinedAt   DateTime  @default(now())
+
+  channel    ChatChannel @relation(fields: [channelId], references: [id])
+  user       User        @relation(fields: [userId], references: [id])
+
+  @@id([channelId, userId])
+  @@map("chat_participants")
+}
+
+model Shift {
+  id             String      @id @default(cuid())
+  branchId       String
+  startTime      DateTime
+  endTime        DateTime?
+  supervisorId   String
+  handoverNotes  String?
+  status         ShiftStatus @default(SCHEDULED)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  branch         Branch      @relation(fields: [branchId], references: [id])
+  supervisor     User        @relation("ShiftSupervisor", fields: [supervisorId], references: [id])
+  tasks          Task[]
+
+  @@index([branchId, startTime])
+  @@map("shifts")
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  actorId       String
+  action        String
+  entityType    String
+  entityId      String
+  previousState Json?
+  newState      Json?
+  reason        String?
+  branchId      String?
+  createdAt     DateTime @default(now())
+
+  actor         User     @relation(fields: [actorId], references: [id])
+  branch        Branch?  @relation(fields: [branchId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
