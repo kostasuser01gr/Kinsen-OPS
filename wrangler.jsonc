@@ -11,7 +11,7 @@
   "vars": {
     "NEXTAUTH_URL": "https://kinsen-ops.dataos-api.workers.dev",
     "NODE_ENV": "production",
-    "NEXT_PUBLIC_SUPABASE_URL": "https://xtawoqzaeuvaelnruotc.supabase.co",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0YXdvcXphZXV2YWVsbnJ1b3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1OTU4OTEsImV4cCI6MjA4NzE3MTg5MX0.HTubRN08a1yvqxSaXrhnRAVp9WKUBvNHoh2q2niOssE"
+    "NEXT_PUBLIC_SUPABASE_URL": "https://jlkqjljamkdjwpdhjage.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsa3FqbGphbWtkandwZGhqYWdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NTA2MTIsImV4cCI6MjA4NzUyNjYxMn0._8zs1pBzta7_c13YbnIoumM9ncBA-v_-uK2OVXcHvLo"
   }
 }
