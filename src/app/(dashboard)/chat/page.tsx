@@ -8,11 +8,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageSquare, Plus, Send } from "lucide-react";
 import { useState } from "react";
+import { useRealtimeChat } from "@/hooks/use-realtime";
 
 export default function ChatPage() {
   const { data: channels, isLoading } = trpc.chat.listChannels.useQuery();
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+
+  useRealtimeChat(selectedChannelId);
 
   const { data: messagesData } = trpc.chat.getMessages.useQuery(
     { channelId: selectedChannelId! },

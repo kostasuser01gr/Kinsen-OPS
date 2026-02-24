@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kinsen-ops",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "NEXTAUTH_URL": "https://kinsen-ops.dataos-api.workers.dev",
+    "NODE_ENV": "production",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://xtawoqzaeuvaelnruotc.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0YXdvcXphZXV2YWVsbnJ1b3RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1OTU4OTEsImV4cCI6MjA4NzE3MTg5MX0.HTubRN08a1yvqxSaXrhnRAVp9WKUBvNHoh2q2niOssE"
+  }
+}

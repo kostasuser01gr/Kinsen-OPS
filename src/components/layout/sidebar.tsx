@@ -16,11 +16,13 @@ import {
   ChevronRight,
   Menu,
   X,
+  LayoutDashboard,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "fleet:read" },
   { label: "Fleet", href: "/fleet", icon: Car, permission: "fleet:read" },
   { label: "Rentals", href: "/rentals", icon: FileText, permission: "rental:read" },
   { label: "Tasks", href: "/tasks", icon: ListTodo, permission: "task:read" },
